@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
@@ -9,7 +10,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// MongoDB connection (remove deprecated options)
+// MongoDB connection
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/todoapp')
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
@@ -28,7 +29,7 @@ const todoSchema = new mongoose.Schema({
 
 const Todo = mongoose.model('Todo', todoSchema);
 
-// Routes
+// ── API Routes ──────────────────────────────────────────────────────────────
 
 // Get all todos
 app.get('/api/todos', async (req, res) => {
@@ -59,9 +60,7 @@ app.put('/api/todos/:id', async (req, res) => {
       req.body,
       { new: true, runValidators: true }
     );
-    if (!todo) {
-      return res.status(404).json({ error: 'Todo not found' });
-    }
+    if (!todo) return res.status(404).json({ error: 'Todo not found' });
     res.json(todo);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -72,22 +71,29 @@ app.put('/api/todos/:id', async (req, res) => {
 app.delete('/api/todos/:id', async (req, res) => {
   try {
     const todo = await Todo.findByIdAndDelete(req.params.id);
-    if (!todo) {
-      return res.status(404).json({ error: 'Todo not found' });
-    }
+    if (!todo) return res.status(404).json({ error: 'Todo not found' });
     res.json({ message: 'Todo deleted successfully' });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
 });
 
-// Health check endpoint
+// Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Server is running' });
 });
 
+// ── Serve React Frontend ────────────────────────────────────────────────────
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Catch-all: send React app for any non-API route
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// ── Start Server ────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  console.log(`API endpoints available at http://localhost:${PORT}/api`);
+  console.log(`API available at http://localhost:${PORT}/api`);
 });
